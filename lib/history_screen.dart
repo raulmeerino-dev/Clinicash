@@ -570,8 +570,11 @@ class _HistoryScreenState extends State<HistoryScreen> {
                           ),
                           children: entry.value.map((record) {
                             final price = (record['precio_final'] as num).toDouble();
-                            final visual =
-                                treatmentVisualByName(record['tratamiento'] as String);
+                            final visual = treatmentVisualForTreatment(
+                              treatmentName: record['tratamiento'] as String,
+                              iconKey: record['tratamiento_icon_key'] as String?,
+                              colorHex: record['tratamiento_color_hex'] as String?,
+                            );
                             final patientName = '${record['paciente']}';
                             final treatmentName = '${record['tratamiento']}';
                             final createdAt = DateTime.fromMillisecondsSinceEpoch(
@@ -603,7 +606,7 @@ class _HistoryScreenState extends State<HistoryScreen> {
                                 overflow: TextOverflow.ellipsis,
                               ),
                               subtitle: Text(
-                                'Fecha: ${record['fecha']} · Hora: $timeLabel',
+                                '${record['fecha']} · $timeLabel',
                                 style: TextStyle(color: cs.onSurfaceVariant),
                               ),
                               trailing: PopupMenuButton<String>(

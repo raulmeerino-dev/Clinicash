@@ -84,11 +84,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
   // Diálogo reutilizable para crear/editar odontólogos.
   Future<void> _openDentistDialog({Map<String, dynamic>? item}) async {
     final nameController = TextEditingController(text: item?['nombre'] as String? ?? '');
-    final feeController = TextEditingController(
-      text: item?['tarifa_predeterminada'] == null
-          ? ''
-          : (item!['tarifa_predeterminada'] as num).toString(),
-    );
 
     final saved = await showDialog<bool>(
       context: context,
@@ -102,14 +97,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 controller: nameController,
                 decoration: const InputDecoration(labelText: 'Nombre'),
               ),
-              const SizedBox(height: 8),
-              TextField(
-                controller: feeController,
-                keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                decoration: const InputDecoration(
-                  labelText: 'Tarifa predeterminada (%)',
-                ),
-              ),
             ],
           ),
           actions: [
@@ -122,14 +109,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 final name = nameController.text.trim();
                 if (name.isEmpty) return;
 
-                final feeText = feeController.text.trim();
-                final fee = feeText.isEmpty
-                    ? null
-                    : double.tryParse(feeText.replaceAll(',', '.'));
-
                 final data = {
                   'nombre': name,
-                  'tarifa_predeterminada': fee,
                 };
 
                 if (item == null) {
@@ -149,7 +130,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
     );
 
     nameController.dispose();
-    feeController.dispose();
 
     if (saved == true) {
       await _loadData();
@@ -164,59 +144,137 @@ class _SettingsScreenState extends State<SettingsScreen> {
           ? ''
           : (item['precio_predeterminado'] as num).toString(),
     );
+    String selectedIconKey =
+        (item?['icon_key'] as String?) ?? kTreatmentIconOptions.first.key;
+    String selectedColorHex =
+        (item?['color_hex'] as String?) ?? encodeColorHex(kTreatmentColorOptions.first);
 
     final saved = await showDialog<bool>(
       context: context,
       builder: (context) {
-        return AlertDialog(
-          title: Text(item == null ? 'Nuevo tratamiento' : 'Editar tratamiento'),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              TextField(
-                controller: nameController,
-                decoration: const InputDecoration(labelText: 'Nombre'),
-              ),
-              const SizedBox(height: 8),
-              TextField(
-                controller: priceController,
-                keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                decoration: const InputDecoration(
-                  labelText: 'Precio predeterminado',
+        return StatefulBuilder(
+          builder: (context, setDialogState) {
+            return AlertDialog(
+              title: Text(item == null ? 'Nuevo tratamiento' : 'Editar tratamiento'),
+              content: SizedBox(
+                width: 420,
+                child: SingleChildScrollView(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      TextField(
+                        controller: nameController,
+                        decoration: const InputDecoration(labelText: 'Nombre'),
+                      ),
+                      const SizedBox(height: 8),
+                      TextField(
+                        controller: priceController,
+                        keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                        decoration: const InputDecoration(
+                          labelText: 'Precio predeterminado',
+                        ),
+                      ),
+                      const SizedBox(height: 14),
+                      const Text(
+                        'Icono',
+                        style: TextStyle(fontWeight: FontWeight.w700),
+                      ),
+                      const SizedBox(height: 8),
+                      Wrap(
+                        spacing: 8,
+                        runSpacing: 8,
+                        children: kTreatmentIconOptions.map((option) {
+                          final selected = selectedIconKey == option.key;
+                          return ChoiceChip(
+                            selected: selected,
+                            onSelected: (_) {
+                              setDialogState(() {
+                                selectedIconKey = option.key;
+                              });
+                            },
+                            avatar: Icon(option.icon, size: 18),
+                            label: Text(option.label),
+                          );
+                        }).toList(),
+                      ),
+                      const SizedBox(height: 14),
+                      const Text(
+                        'Color',
+                        style: TextStyle(fontWeight: FontWeight.w700),
+                      ),
+                      const SizedBox(height: 8),
+                      Wrap(
+                        spacing: 8,
+                        runSpacing: 8,
+                        children: kTreatmentColorOptions.map((color) {
+                          final encoded = encodeColorHex(color);
+                          final selected = selectedColorHex == encoded;
+                          return InkWell(
+                            borderRadius: BorderRadius.circular(999),
+                            onTap: () {
+                              setDialogState(() {
+                                selectedColorHex = encoded;
+                              });
+                            },
+                            child: Container(
+                              width: 32,
+                              height: 32,
+                              decoration: BoxDecoration(
+                                color: color,
+                                shape: BoxShape.circle,
+                                border: Border.all(
+                                  color: selected
+                                      ? Theme.of(context).colorScheme.onSurface
+                                      : Colors.transparent,
+                                  width: 2,
+                                ),
+                              ),
+                              child: selected
+                                  ? const Icon(Icons.check, color: Colors.white, size: 18)
+                                  : null,
+                            ),
+                          );
+                        }).toList(),
+                      ),
+                    ],
+                  ),
                 ),
               ),
-            ],
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context, false),
-              child: const Text('Cancelar'),
-            ),
-            ElevatedButton(
-              onPressed: () async {
-                final name = nameController.text.trim();
-                final parsed =
-                    double.tryParse(priceController.text.trim().replaceAll(',', '.'));
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.pop(context, false),
+                  child: const Text('Cancelar'),
+                ),
+                ElevatedButton(
+                  onPressed: () async {
+                    final name = nameController.text.trim();
+                    final parsed =
+                        double.tryParse(priceController.text.trim().replaceAll(',', '.'));
 
-                if (name.isEmpty || parsed == null) return;
+                    if (name.isEmpty || parsed == null) return;
 
-                final data = {
-                  'nombre': name,
-                  'precio_predeterminado': parsed,
-                };
+                    final data = {
+                      'nombre': name,
+                      'precio_predeterminado': parsed,
+                      'icon_key': selectedIconKey,
+                      'color_hex': selectedColorHex,
+                    };
 
-                if (item == null) {
-                  await _db.insertTreatmentType(data);
-                } else {
-                  await _db.updateTreatmentType(item['id'] as int, data);
-                }
+                    if (item == null) {
+                      await _db.insertTreatmentType(data);
+                    } else {
+                      await _db.updateTreatmentType(item['id'] as int, data);
+                    }
 
-                if (!context.mounted) return;
-                Navigator.pop(context, true);
-              },
-              child: const Text('Guardar'),
-            ),
-          ],
+                    if (!context.mounted) return;
+                    Navigator.pop(context, true);
+                  },
+                  child: const Text('Guardar'),
+                ),
+              ],
+            );
+          },
         );
       },
     );
@@ -339,7 +397,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
           )
         else
           ..._dentists.map((d) {
-            final fee = d['tarifa_predeterminada'];
             return Padding(
               padding: const EdgeInsets.only(bottom: 8),
               child: Card(
@@ -349,11 +406,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     child: Icon(Icons.person, color: cs.onSecondaryContainer),
                   ),
                   title: Text(d['nombre'] as String),
-                  subtitle: Text(
-                    fee == null
-                        ? 'Sin tarifa predeterminada'
-                        : 'Tarifa: ${(fee as num).toStringAsFixed(2)} %',
-                  ),
+                  subtitle: const Text('Doctor disponible para seleccionar'),
                   trailing: Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
@@ -437,7 +490,11 @@ class _SettingsScreenState extends State<SettingsScreen> {
           ..._filteredTreatments.map((t) {
             final price = (t['precio_predeterminado'] as num).toDouble();
             final treatmentName = '${t['nombre'] ?? ''}';
-            final visual = treatmentVisualByName(treatmentName);
+            final visual = treatmentVisualForTreatment(
+              treatmentName: treatmentName,
+              iconKey: t['icon_key'] as String?,
+              colorHex: t['color_hex'] as String?,
+            );
             return Padding(
               padding: const EdgeInsets.only(bottom: 8),
               child: Card(

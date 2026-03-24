@@ -101,16 +101,22 @@ class _HomeScreenState extends State<HomeScreen> {
 
     return Scaffold(
       appBar: AppBar(
-        title: Text('Hoy · $doctorName'),
-        actions: [
-          IconButton(
-            onPressed: () {
-              DoctorSession.clear();
-              Navigator.pushNamedAndRemoveUntil(context, '/', (_) => false);
-            },
-            icon: const Icon(Icons.switch_account),
-            tooltip: 'Cambiar doctor',
+        title: InkWell(
+          borderRadius: BorderRadius.circular(8),
+          onTap: () {
+            DoctorSession.clear();
+            Navigator.pushNamedAndRemoveUntil(context, '/', (_) => false);
+          },
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(doctorName),
+              const SizedBox(width: 6),
+              const Icon(Icons.expand_more, size: 18),
+            ],
           ),
+        ),
+        actions: [
           IconButton(
             onPressed: () => Navigator.pushNamed(context, '/history')
                 .then((_) => _loadTodayData()),
@@ -240,8 +246,11 @@ class _HomeScreenState extends State<HomeScreen> {
                   else
                     ..._todayRecords.map((record) {
                       final price = (record['precio_final'] as num).toDouble();
-                      final visual =
-                          treatmentVisualByName(record['tratamiento'] as String);
+                      final visual = treatmentVisualForTreatment(
+                        treatmentName: record['tratamiento'] as String,
+                        iconKey: record['tratamiento_icon_key'] as String?,
+                        colorHex: record['tratamiento_color_hex'] as String?,
+                      );
                       final patientName = '${record['paciente']}';
                       final treatmentName = '${record['tratamiento']}';
                       final createdAt =
@@ -281,7 +290,7 @@ class _HomeScreenState extends State<HomeScreen> {
                               overflow: TextOverflow.ellipsis,
                             ),
                             subtitle: Text(
-                              '${record['odontologo']} · $timeLabel',
+                              timeLabel,
                             ),
                             trailing: PopupMenuButton<String>(
                               onSelected: (value) {

@@ -28,7 +28,7 @@ class DatabaseHelper {
       onUpgrade: (db, oldVersion, newVersion) async {
         await _upgradeSchema(db, oldVersion, newVersion);
       },
-      version: 2,
+      version: 3,
     );
 
     await _ensureSeedData(db);
@@ -90,6 +90,15 @@ class DatabaseHelper {
         ON pacientes(nombre)
       ''');
     }
+
+    if (oldVersion < 3) {
+      await db.execute(
+        'ALTER TABLE tratamientos ADD COLUMN icon_key TEXT',
+      );
+      await db.execute(
+        'ALTER TABLE tratamientos ADD COLUMN color_hex TEXT',
+      );
+    }
   }
 
   Future<void> _createSchema(Database db) async {
@@ -112,7 +121,9 @@ class DatabaseHelper {
       CREATE TABLE tratamientos(
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         nombre TEXT NOT NULL UNIQUE,
-        precio_predeterminado REAL NOT NULL DEFAULT 0
+        precio_predeterminado REAL NOT NULL DEFAULT 0,
+        icon_key TEXT,
+        color_hex TEXT
       )
     ''');
 
@@ -269,7 +280,9 @@ class DatabaseHelper {
         p.nombre AS paciente,
         o.nombre AS odontologo,
         t.nombre AS tratamiento,
-        t.precio_predeterminado AS precio_predeterminado_tratamiento
+        t.precio_predeterminado AS precio_predeterminado_tratamiento,
+        t.icon_key AS tratamiento_icon_key,
+        t.color_hex AS tratamiento_color_hex
       FROM registro_diario rd
       INNER JOIN pacientes p ON p.id = rd.paciente_id
       INNER JOIN odontologos o ON o.id = rd.odontologo_id
@@ -291,7 +304,9 @@ class DatabaseHelper {
         p.nombre AS paciente,
         o.nombre AS odontologo,
         t.nombre AS tratamiento,
-        t.precio_predeterminado AS precio_predeterminado_tratamiento
+        t.precio_predeterminado AS precio_predeterminado_tratamiento,
+        t.icon_key AS tratamiento_icon_key,
+        t.color_hex AS tratamiento_color_hex
       FROM registro_diario rd
       INNER JOIN pacientes p ON p.id = rd.paciente_id
       INNER JOIN odontologos o ON o.id = rd.odontologo_id
@@ -308,7 +323,9 @@ class DatabaseHelper {
         rd.*,
         p.nombre AS paciente,
         o.nombre AS odontologo,
-        t.nombre AS tratamiento
+        t.nombre AS tratamiento,
+        t.icon_key AS tratamiento_icon_key,
+        t.color_hex AS tratamiento_color_hex
       FROM registro_diario rd
       INNER JOIN pacientes p ON p.id = rd.paciente_id
       INNER JOIN odontologos o ON o.id = rd.odontologo_id
@@ -332,7 +349,9 @@ class DatabaseHelper {
         rd.*,
         p.nombre AS paciente,
         o.nombre AS odontologo,
-        t.nombre AS tratamiento
+        t.nombre AS tratamiento,
+        t.icon_key AS tratamiento_icon_key,
+        t.color_hex AS tratamiento_color_hex
       FROM registro_diario rd
       INNER JOIN pacientes p ON p.id = rd.paciente_id
       INNER JOIN odontologos o ON o.id = rd.odontologo_id
@@ -354,12 +373,14 @@ class DatabaseHelper {
         t.id,
         t.nombre,
         t.precio_predeterminado,
+        t.icon_key,
+        t.color_hex,
         COUNT(rd.id) AS usos,
         MAX(rd.created_at) AS ultimo_uso
       FROM registro_diario rd
       INNER JOIN tratamientos t ON t.id = rd.tratamiento_id
       WHERE rd.odontologo_id = ?
-      GROUP BY t.id, t.nombre, t.precio_predeterminado
+      GROUP BY t.id, t.nombre, t.precio_predeterminado, t.icon_key, t.color_hex
       ORDER BY usos DESC, ultimo_uso DESC
       LIMIT ?
     ''', [dentistId, limit]);

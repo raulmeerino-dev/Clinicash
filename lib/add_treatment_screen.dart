@@ -570,7 +570,11 @@ class _AddTreatmentScreenState extends State<AddTreatmentScreen> {
                         final id = treatment['id'] as int;
                         final isSelected = _selectedTreatmentId == id;
                         final name = treatment['nombre'] as String;
-                        final visual = treatmentVisualByName(name);
+                        final visual = treatmentVisualForTreatment(
+                          treatmentName: name,
+                          iconKey: treatment['icon_key'] as String?,
+                          colorHex: treatment['color_hex'] as String?,
+                        );
                         final chipColor =
                             _quickChipPalette[index % _quickChipPalette.length];
                         return SizedBox(
