@@ -7,7 +7,7 @@ class TreatmentPreset {
 
 const List<TreatmentPreset> kReceivedTreatmentsPreset = [
   TreatmentPreset(name: 'Ventana quirurgica orto Implante', price: 120),
-  TreatmentPreset(name: 'Puente de 2 piezas de zirconio-cerámica', price: 780),
+  TreatmentPreset(name: 'Puente de 2 piezas de zirconio', price: 780),
   TreatmentPreset(name: 'Puente de 2 piezas metal', price: 600),
   TreatmentPreset(name: 'Puente de 3 piezas de zirconio', price: 1170),
   TreatmentPreset(name: 'Puente de 3 piezas metal-cerámica', price: 900),

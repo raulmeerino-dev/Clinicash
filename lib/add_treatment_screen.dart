@@ -15,6 +15,19 @@ class AddTreatmentScreen extends StatefulWidget {
 }
 
 class _AddTreatmentScreenState extends State<AddTreatmentScreen> {
+  static const List<Color> _quickChipPalette = [
+    Color(0xFF0EA5E9),
+    Color(0xFF8B5CF6),
+    Color(0xFFF97316),
+    Color(0xFFF43F5E),
+    Color(0xFF14B8A6),
+    Color(0xFFEAB308),
+    Color(0xFF6366F1),
+    Color(0xFF22C55E),
+    Color(0xFFEF4444),
+    Color(0xFFA855F7),
+  ];
+
   final DatabaseHelper _db = DatabaseHelper();
   final _formKey = GlobalKey<FormState>();
   final TextEditingController _patientController = TextEditingController();
@@ -25,6 +38,7 @@ class _AddTreatmentScreenState extends State<AddTreatmentScreen> {
   List<Map<String, dynamic>> _treatments = [];
   List<Map<String, dynamic>> _patientSuggestions = [];
   List<Map<String, dynamic>> _quickTreatments = [];
+  bool _quickTreatmentsFromDoctor = false;
 
   int? _selectedTreatmentId;
   bool _isSaving = false;
@@ -95,9 +109,11 @@ class _AddTreatmentScreenState extends State<AddTreatmentScreen> {
   Future<void> _loadQuickTreatmentsForDoctor() async {
     final doctorId = DoctorSession.selectedDoctorId;
     List<Map<String, dynamic>> quick = [];
+    var fromDoctor = false;
 
     if (doctorId != null) {
       quick = await _db.getTopTreatmentsByDoctor(doctorId, limit: 8);
+      fromDoctor = quick.isNotEmpty;
     }
 
     if (quick.isEmpty) {
@@ -107,6 +123,7 @@ class _AddTreatmentScreenState extends State<AddTreatmentScreen> {
     if (!mounted) return;
     setState(() {
       _quickTreatments = quick;
+      _quickTreatmentsFromDoctor = fromDoctor;
     });
   }
 
@@ -248,6 +265,9 @@ class _AddTreatmentScreenState extends State<AddTreatmentScreen> {
     final isCatalogEmpty = _treatments.isEmpty;
     final cs = Theme.of(context).colorScheme;
     final doctorName = DoctorSession.selectedDoctorName ?? 'Sin doctor';
+    final quickSectionTitle = _quickTreatmentsFromDoctor
+        ? 'Selección rápida · Más usados de $doctorName'
+        : 'Selección rápida';
 
     return Scaffold(
       appBar: AppBar(
@@ -373,29 +393,33 @@ class _AddTreatmentScreenState extends State<AddTreatmentScreen> {
                   const SizedBox(height: 12),
 
                   if (_quickTreatments.isNotEmpty) ...[
-                    const Text(
-                      'Selección rápida',
+                    Text(
+                      quickSectionTitle,
                       style: TextStyle(fontWeight: FontWeight.w700),
                     ),
                     const SizedBox(height: 8),
                     Wrap(
                       spacing: 8,
                       runSpacing: 8,
-                      children: _quickTreatments.map((treatment) {
+                      children: _quickTreatments.asMap().entries.map((entry) {
+                        final index = entry.key;
+                        final treatment = entry.value;
                         final id = treatment['id'] as int;
                         final isSelected = _selectedTreatmentId == id;
                         final name = treatment['nombre'] as String;
                         final visual = treatmentVisualByName(name);
+                        final chipColor =
+                            _quickChipPalette[index % _quickChipPalette.length];
                         return SizedBox(
                           width: 160,
                           child: FilledButton.icon(
                             style: FilledButton.styleFrom(
                               minimumSize: const Size.fromHeight(56),
                               backgroundColor: isSelected
-                                  ? visual.color
-                                  : visual.color.withValues(alpha: 0.16),
+                                  ? chipColor
+                                  : chipColor.withValues(alpha: 0.18),
                               foregroundColor:
-                                  isSelected ? Colors.white : visual.color,
+                                  isSelected ? Colors.white : chipColor,
                               shape: RoundedRectangleBorder(
                                 borderRadius: BorderRadius.circular(14),
                               ),

@@ -5,7 +5,12 @@ import 'database_helper.dart';
 import 'treatment_visuals.dart';
 
 class SettingsScreen extends StatefulWidget {
-  const SettingsScreen({super.key});
+  const SettingsScreen({
+    super.key,
+    required this.onThemeChanged,
+  });
+
+  final ValueChanged<bool> onThemeChanged;
 
   @override
   State<SettingsScreen> createState() => _SettingsScreenState();
@@ -543,6 +548,16 @@ class _SettingsScreenState extends State<SettingsScreen> {
       child: Scaffold(
         appBar: AppBar(
           title: const Text('Ajustes'),
+          actions: [
+            Tooltip(
+              message: 'Modo oscuro',
+              child: Switch(
+                value: Theme.of(context).brightness == Brightness.dark,
+                onChanged: widget.onThemeChanged,
+              ),
+            ),
+            const SizedBox(width: 8),
+          ],
           bottom: const TabBar(
             isScrollable: true,
             tabs: [

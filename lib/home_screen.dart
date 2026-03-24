@@ -91,6 +91,13 @@ class _HomeScreenState extends State<HomeScreen> {
         '${now.day.toString().padLeft(2, '0')}/${now.month.toString().padLeft(2, '0')}/${now.year}';
     final doctorName = DoctorSession.selectedDoctorName ?? 'Sin doctor';
     final cs = Theme.of(context).colorScheme;
+    final isDarkMode = Theme.of(context).brightness == Brightness.dark;
+    final summaryGradientColors = isDarkMode
+        ? [
+            Color.lerp(cs.primary, Colors.black, 0.45)!,
+            Color.lerp(cs.secondary, Colors.black, 0.55)!,
+          ]
+        : [cs.primary, cs.secondary];
 
     return Scaffold(
       appBar: AppBar(
@@ -135,14 +142,14 @@ class _HomeScreenState extends State<HomeScreen> {
                     padding: const EdgeInsets.all(18),
                     decoration: BoxDecoration(
                       gradient: LinearGradient(
-                        colors: [cs.primary, cs.secondary],
+                        colors: summaryGradientColors,
                         begin: Alignment.topLeft,
                         end: Alignment.bottomRight,
                       ),
                       borderRadius: BorderRadius.circular(24),
                       boxShadow: [
                         BoxShadow(
-                          color: cs.primary.withValues(alpha: 0.22),
+                          color: cs.primary.withValues(alpha: isDarkMode ? 0.12 : 0.22),
                           blurRadius: 24,
                           offset: const Offset(0, 10),
                         ),
@@ -360,10 +367,11 @@ class _StatChip extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isDarkMode = Theme.of(context).brightness == Brightness.dark;
     return Container(
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: Colors.white.withValues(alpha: 0.15),
+        color: Colors.white.withValues(alpha: isDarkMode ? 0.1 : 0.15),
         borderRadius: BorderRadius.circular(14),
       ),
       child: Row(
