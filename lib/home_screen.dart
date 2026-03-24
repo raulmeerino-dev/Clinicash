@@ -242,6 +242,8 @@ class _HomeScreenState extends State<HomeScreen> {
                       final price = (record['precio_final'] as num).toDouble();
                       final visual =
                           treatmentVisualByName(record['tratamiento'] as String);
+                      final patientName = '${record['paciente']}';
+                      final treatmentName = '${record['tratamiento']}';
                       final createdAt =
                           DateTime.fromMillisecondsSinceEpoch(record['created_at'] as int);
                       final timeLabel =
@@ -261,8 +263,22 @@ class _HomeScreenState extends State<HomeScreen> {
                                 color: visual.color,
                               ),
                             ),
-                            title: Text(
-                              '${record['paciente']} · ${record['tratamiento']}',
+                            title: Text.rich(
+                              TextSpan(
+                                children: [
+                                  TextSpan(
+                                    text: patientName,
+                                    style: TextStyle(
+                                      color: cs.secondary,
+                                      fontWeight: FontWeight.w800,
+                                    ),
+                                  ),
+                                  const TextSpan(text: ' · '),
+                                  TextSpan(text: treatmentName),
+                                ],
+                              ),
+                              maxLines: 2,
+                              overflow: TextOverflow.ellipsis,
                             ),
                             subtitle: Text(
                               '${record['odontologo']} · $timeLabel',

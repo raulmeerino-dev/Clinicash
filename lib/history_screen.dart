@@ -379,7 +379,9 @@ class _HistoryScreenState extends State<HistoryScreen> {
                                 style: TextStyle(
                                   fontWeight: FontWeight.w700,
                                   fontSize: 16,
-                                  color: emphasisTextColor,
+                                  color: isDarkMode
+                                      ? Colors.white
+                                      : emphasisTextColor,
                                 ),
                               ),
                               Text(
@@ -394,7 +396,9 @@ class _HistoryScreenState extends State<HistoryScreen> {
                           style: TextStyle(
                             fontWeight: FontWeight.w800,
                             fontSize: 16,
-                            color: emphasisTextColor,
+                            color: isDarkMode
+                                ? Colors.white
+                                : emphasisTextColor,
                           ),
                         ),
                       ],

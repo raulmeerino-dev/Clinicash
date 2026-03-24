@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'dart:io';
+import 'package:intl/date_symbol_data_local.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'add_treatment_screen.dart';
 import 'doctor_selection_screen.dart';
@@ -9,7 +10,10 @@ import 'settings_screen.dart';
 
 import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 
-void main() {
+Future<void> main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  await initializeDateFormatting('es_ES');
+
   // Inicializar sqflite_common_ffi para Windows
   if (Platform.isWindows || Platform.isLinux) {
     sqfliteFfiInit();
@@ -146,8 +150,8 @@ class _MyAppState extends State<MyApp> {
           ),
         ),
         floatingActionButtonTheme: FloatingActionButtonThemeData(
-          backgroundColor: lightPalette.tertiary,
-          foregroundColor: lightPalette.onTertiary,
+          backgroundColor: lightPalette.secondary,
+          foregroundColor: lightPalette.onSecondary,
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(18),
           ),
@@ -233,8 +237,8 @@ class _MyAppState extends State<MyApp> {
           ),
         ),
         floatingActionButtonTheme: FloatingActionButtonThemeData(
-          backgroundColor: darkPalette.tertiary,
-          foregroundColor: darkPalette.onTertiary,
+          backgroundColor: darkPalette.secondary,
+          foregroundColor: darkPalette.onSecondary,
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(18),
           ),
