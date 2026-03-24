@@ -13,9 +13,9 @@ workflows:
       cocoapods: default
       ios_signing:
         distribution_type: app_store
-        bundle_identifier: com.example.odontologiaApp
+        bundle_identifier: com.raulmeerino.clinicash
       vars:
-        BUNDLE_ID: com.example.odontologiaApp
+        BUNDLE_ID: com.raulmeerino.clinicash
 
     triggering:
       events:
