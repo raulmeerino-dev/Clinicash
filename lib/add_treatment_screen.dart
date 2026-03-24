@@ -39,6 +39,7 @@ class _AddTreatmentScreenState extends State<AddTreatmentScreen> {
   List<Map<String, dynamic>> _patientSuggestions = [];
   List<Map<String, dynamic>> _quickTreatments = [];
   bool _quickTreatmentsFromDoctor = false;
+  DateTime? _manualDate;
 
   int? _selectedTreatmentId;
   bool _isSaving = false;
@@ -196,7 +197,41 @@ class _AddTreatmentScreenState extends State<AddTreatmentScreen> {
     _selectedTreatmentId = record['tratamiento_id'] as int;
     final price = (record['precio_final'] as num).toDouble();
     _priceController.text = price.toStringAsFixed(2);
+    _manualDate = _parseDateKey(record['fecha'] as String?);
     setState(() {});
+  }
+
+  DateTime? _parseDateKey(String? key) {
+    if (key == null || key.trim().isEmpty) return null;
+    final parts = key.split('-');
+    if (parts.length != 3) return null;
+    final year = int.tryParse(parts[0]);
+    final month = int.tryParse(parts[1]);
+    final day = int.tryParse(parts[2]);
+    if (year == null || month == null || day == null) return null;
+    return DateTime(year, month, day);
+  }
+
+  String _formatDate(DateTime date) {
+    final day = date.day.toString().padLeft(2, '0');
+    final month = date.month.toString().padLeft(2, '0');
+    final year = date.year;
+    return '$day/$month/$year';
+  }
+
+  Future<void> _pickManualDate() async {
+    final now = DateTime.now();
+    final picked = await showDatePicker(
+      context: context,
+      initialDate: _manualDate ?? now,
+      firstDate: DateTime(2020),
+      lastDate: DateTime(2100),
+      helpText: 'Fecha del tratamiento',
+    );
+    if (picked == null) return;
+    setState(() {
+      _manualDate = picked;
+    });
   }
 
   // Aplica precio predeterminado del tratamiento elegido (editable por usuario).
@@ -226,9 +261,14 @@ class _AddTreatmentScreenState extends State<AddTreatmentScreen> {
     try {
       final patientId = await _db.upsertPatientByName(_patientController.text);
       final now = DateTime.now();
+      final selectedDateKey = _manualDate != null
+          ? _db.dateKey(_manualDate!)
+          : _isEdit
+              ? '${widget.existingRecord!['fecha']}'
+              : _db.dateKey(now);
 
       final payload = <String, dynamic>{
-        'fecha': _db.dateKey(now),
+        'fecha': selectedDateKey,
         'paciente_id': patientId,
         'odontologo_id': doctorId,
         'tratamiento_id': _selectedTreatmentId,
@@ -350,20 +390,59 @@ class _AddTreatmentScreenState extends State<AddTreatmentScreen> {
                   ),
                   const SizedBox(height: 12),
 
-                  // Campo de paciente (nuevo o existente).
-                  TextFormField(
-                    controller: _patientController,
-                    decoration: const InputDecoration(
-                      labelText: 'Nombre del paciente',
-                      border: OutlineInputBorder(),
-                    ),
-                    validator: (value) {
-                      if (value == null || value.trim().isEmpty) {
-                        return 'Ingresa el nombre del paciente';
-                      }
-                      return null;
-                    },
+                  // Campo de paciente en búsqueda en tiempo real + fecha opcional.
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Expanded(
+                        child: TextFormField(
+                          controller: _patientController,
+                          decoration: const InputDecoration(
+                            labelText: 'Buscar o escribir paciente',
+                            prefixIcon: Icon(Icons.search),
+                            border: OutlineInputBorder(),
+                          ),
+                          validator: (value) {
+                            if (value == null || value.trim().isEmpty) {
+                              return 'Ingresa el nombre del paciente';
+                            }
+                            return null;
+                          },
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Tooltip(
+                        message: _manualDate == null
+                            ? 'Asignar fecha (opcional)'
+                            : 'Fecha: ${_formatDate(_manualDate!)}',
+                        child: IconButton.filledTonal(
+                          onPressed: _pickManualDate,
+                          icon: const Icon(Icons.calendar_month),
+                        ),
+                      ),
+                      if (_manualDate != null)
+                        IconButton(
+                          tooltip: 'Volver a hoy',
+                          onPressed: () {
+                            setState(() {
+                              _manualDate = null;
+                            });
+                          },
+                          icon: const Icon(Icons.close),
+                        ),
+                    ],
                   ),
+                  if (_manualDate != null)
+                    Padding(
+                      padding: const EdgeInsets.only(top: 6, left: 4),
+                      child: Text(
+                        'Fecha seleccionada: ${_formatDate(_manualDate!)}',
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: cs.onSurfaceVariant,
+                        ),
+                      ),
+                    ),
                   if (_patientSuggestions.isNotEmpty)
                     Card(
                       margin: const EdgeInsets.only(top: 8),

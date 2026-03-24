@@ -549,12 +549,14 @@ class _SettingsScreenState extends State<SettingsScreen> {
         appBar: AppBar(
           title: const Text('Ajustes'),
           actions: [
-            Tooltip(
-              message: 'Modo oscuro',
-              child: Switch(
-                value: Theme.of(context).brightness == Brightness.dark,
-                onChanged: widget.onThemeChanged,
-              ),
+            IconButton(
+              tooltip: 'Modo oscuro',
+              onPressed: () {
+                final isDarkMode =
+                    Theme.of(context).brightness == Brightness.dark;
+                widget.onThemeChanged(!isDarkMode);
+              },
+              icon: const Icon(Icons.dark_mode_rounded),
             ),
             const SizedBox(width: 8),
           ],

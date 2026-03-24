@@ -80,7 +80,7 @@ class _MyAppState extends State<MyApp> {
     );
 
     return MaterialApp(
-      title: 'Clínica',
+      title: 'Clinicash',
       debugShowCheckedModeBanner: false,
       themeMode: _themeMode,
       theme: base.copyWith(

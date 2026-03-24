@@ -265,7 +265,7 @@ class _HomeScreenState extends State<HomeScreen> {
                               '${record['paciente']} · ${record['tratamiento']}',
                             ),
                             subtitle: Text(
-                              'Doctor: ${record['odontologo']} · Hora: $timeLabel',
+                              '${record['odontologo']} · $timeLabel',
                             ),
                             trailing: PopupMenuButton<String>(
                               onSelected: (value) {
