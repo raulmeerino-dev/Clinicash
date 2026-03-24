@@ -14,6 +14,18 @@ class AddTreatmentScreen extends StatefulWidget {
   State<AddTreatmentScreen> createState() => _AddTreatmentScreenState();
 }
 
+class _PendingTreatment {
+  const _PendingTreatment({
+    required this.treatmentId,
+    required this.treatmentName,
+    required this.price,
+  });
+
+  final int treatmentId;
+  final String treatmentName;
+  final double price;
+}
+
 class _AddTreatmentScreenState extends State<AddTreatmentScreen> {
   static const List<Color> _quickChipPalette = [
     Color(0xFF0EA5E9),
@@ -38,6 +50,7 @@ class _AddTreatmentScreenState extends State<AddTreatmentScreen> {
   List<Map<String, dynamic>> _treatments = [];
   List<Map<String, dynamic>> _patientSuggestions = [];
   List<Map<String, dynamic>> _quickTreatments = [];
+  List<_PendingTreatment> _pendingTreatments = [];
   bool _quickTreatmentsFromDoctor = false;
   DateTime? _manualDate;
 
@@ -246,13 +259,64 @@ class _AddTreatmentScreenState extends State<AddTreatmentScreen> {
     _priceController.text = defaultPrice.toStringAsFixed(2);
   }
 
+  _PendingTreatment? _buildCurrentPendingTreatment() {
+    final treatmentId = _selectedTreatmentId;
+    if (treatmentId == null) return null;
+
+    final parsedPrice = double.tryParse(_priceController.text.replaceAll(',', '.'));
+    if (parsedPrice == null) return null;
+
+    final selected = _treatments.firstWhere(
+      (item) => item['id'] == treatmentId,
+      orElse: () => <String, dynamic>{},
+    );
+    if (selected.isEmpty) return null;
+
+    return _PendingTreatment(
+      treatmentId: treatmentId,
+      treatmentName: selected['nombre'] as String,
+      price: parsedPrice,
+    );
+  }
+
+  void _addPendingTreatment() {
+    if (_isEdit) return;
+    if (!_formKey.currentState!.validate()) return;
+
+    final current = _buildCurrentPendingTreatment();
+    if (current == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Selecciona un tratamiento y un precio válido.')),
+      );
+      return;
+    }
+
+    setState(() {
+      _pendingTreatments = [..._pendingTreatments, current];
+      _selectedTreatmentId = null;
+      _priceController.clear();
+      _treatmentSearchController.clear();
+    });
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text('Añadido: ${current.treatmentName}')),
+    );
+  }
+
   // Guarda alta o edición en la tabla registro_diario.
   Future<void> _save() async {
-    if (!_formKey.currentState!.validate()) return;
-    if (_selectedTreatmentId == null) return;
-
     final doctorId = DoctorSession.selectedDoctorId;
     if (doctorId == null) return;
+
+    if (_isEdit || _pendingTreatments.isEmpty) {
+      if (!_formKey.currentState!.validate()) return;
+      if (_selectedTreatmentId == null) return;
+    } else if (_patientController.text.trim().isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Ingresa el nombre del paciente.')),
+      );
+      return;
+    }
 
     setState(() {
       _isSaving = true;
@@ -267,21 +331,41 @@ class _AddTreatmentScreenState extends State<AddTreatmentScreen> {
               ? '${widget.existingRecord!['fecha']}'
               : _db.dateKey(now);
 
-      final payload = <String, dynamic>{
-        'fecha': selectedDateKey,
-        'paciente_id': patientId,
-        'odontologo_id': doctorId,
-        'tratamiento_id': _selectedTreatmentId,
-        'precio_final': double.parse(_priceController.text.replaceAll(',', '.')),
-        'created_at': _isEdit
-            ? widget.existingRecord!['created_at'] as int
-            : now.millisecondsSinceEpoch,
-      };
-
       if (_isEdit) {
+        final payload = <String, dynamic>{
+          'fecha': selectedDateKey,
+          'paciente_id': patientId,
+          'odontologo_id': doctorId,
+          'tratamiento_id': _selectedTreatmentId,
+          'precio_final': double.parse(_priceController.text.replaceAll(',', '.')),
+          'created_at': widget.existingRecord!['created_at'] as int,
+        };
         await _db.updateDailyRecord(widget.existingRecord!['id'] as int, payload);
       } else {
-        await _db.insertDailyRecord(payload);
+        final recordsToInsert = _pendingTreatments.isNotEmpty
+            ? _pendingTreatments
+            : [if (_buildCurrentPendingTreatment() != null) _buildCurrentPendingTreatment()!];
+
+        if (recordsToInsert.isEmpty) {
+          if (!mounted) return;
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Añade al menos un tratamiento.')),
+          );
+          return;
+        }
+
+        for (var i = 0; i < recordsToInsert.length; i++) {
+          final item = recordsToInsert[i];
+          final payload = <String, dynamic>{
+            'fecha': selectedDateKey,
+            'paciente_id': patientId,
+            'odontologo_id': doctorId,
+            'tratamiento_id': item.treatmentId,
+            'precio_final': item.price,
+            'created_at': now.millisecondsSinceEpoch + i,
+          };
+          await _db.insertDailyRecord(payload);
+        }
       }
 
       if (!mounted) return;
@@ -589,6 +673,62 @@ class _AddTreatmentScreenState extends State<AddTreatmentScreen> {
                       return null;
                     },
                   ),
+                  if (!_isEdit) ...[
+                    const SizedBox(height: 10),
+                    Align(
+                      alignment: Alignment.centerLeft,
+                      child: OutlinedButton.icon(
+                        onPressed: _isSaving ? null : _addPendingTreatment,
+                        icon: const Icon(Icons.playlist_add),
+                        label: const Text('Añadir a la lista'),
+                      ),
+                    ),
+                    if (_pendingTreatments.isNotEmpty) ...[
+                      const SizedBox(height: 10),
+                      Card(
+                        child: Padding(
+                          padding: const EdgeInsets.all(12),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                'Tratamientos a guardar (${_pendingTreatments.length})',
+                                style: const TextStyle(fontWeight: FontWeight.w700),
+                              ),
+                              const SizedBox(height: 8),
+                              ..._pendingTreatments.asMap().entries.map((entry) {
+                                final index = entry.key;
+                                final item = entry.value;
+                                return ListTile(
+                                  dense: true,
+                                  contentPadding: EdgeInsets.zero,
+                                  leading: CircleAvatar(
+                                    radius: 14,
+                                    child: Text('${index + 1}'),
+                                  ),
+                                  title: Text(item.treatmentName),
+                                  subtitle: Text('${item.price.toStringAsFixed(2)} €'),
+                                  trailing: IconButton(
+                                    tooltip: 'Quitar',
+                                    icon: const Icon(Icons.close),
+                                    onPressed: _isSaving
+                                        ? null
+                                        : () {
+                                            setState(() {
+                                              _pendingTreatments = [
+                                                ..._pendingTreatments
+                                              ]..removeAt(index);
+                                            });
+                                          },
+                                  ),
+                                );
+                              }),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ],
+                  ],
                   const SizedBox(height: 20),
 
                   Card(
@@ -605,7 +745,13 @@ class _AddTreatmentScreenState extends State<AddTreatmentScreen> {
                                     child: CircularProgressIndicator(strokeWidth: 2),
                                   )
                                 : const Icon(Icons.save),
-                            label: Text(_isEdit ? 'Actualizar' : 'Guardar'),
+                            label: Text(
+                              _isEdit
+                                  ? 'Actualizar'
+                                  : _pendingTreatments.isNotEmpty
+                                      ? 'Guardar ${_pendingTreatments.length} tratamientos'
+                                      : 'Guardar',
+                            ),
                           ),
                           const SizedBox(height: 8),
                           OutlinedButton.icon(

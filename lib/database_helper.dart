@@ -275,7 +275,7 @@ class DatabaseHelper {
       INNER JOIN odontologos o ON o.id = rd.odontologo_id
       INNER JOIN tratamientos t ON t.id = rd.tratamiento_id
       WHERE rd.fecha = ?
-      ORDER BY rd.created_at ASC
+      ORDER BY rd.created_at DESC
     ''', [key]);
   }
 
@@ -297,7 +297,7 @@ class DatabaseHelper {
       INNER JOIN odontologos o ON o.id = rd.odontologo_id
       INNER JOIN tratamientos t ON t.id = rd.tratamiento_id
       WHERE rd.fecha = ? AND rd.odontologo_id = ?
-      ORDER BY rd.created_at ASC
+      ORDER BY rd.created_at DESC
     ''', [key, dentistId]);
   }
 
