@@ -1,19 +1,13 @@
 workflows:
   ios_ipa:
-    name: iOS IPA Build
+    name: iOS IPA Build (AltStore)
     instance_type: mac_mini_m2
     max_build_duration: 60
-
-    integrations:
-      app_store_connect: codemagic
 
     environment:
       flutter: stable
       xcode: latest
       cocoapods: default
-      ios_signing:
-        distribution_type: app_store
-        bundle_identifier: com.raulmeerino.clinicash
       vars:
         BUNDLE_ID: com.raulmeerino.clinicash
 
@@ -30,13 +24,16 @@ workflows:
         script: |
           flutter pub get
 
-      - name: Set up iOS signing
+      - name: Build iOS app without code signing
         script: |
-          xcode-project use-profiles
+          flutter build ios --release --no-codesign
 
-      - name: Build IPA
+      - name: Package unsigned IPA for AltStore
         script: |
-          flutter build ipa --release
+          mkdir -p build/ios/ipa/Payload
+          cp -R build/ios/iphoneos/Runner.app build/ios/ipa/Payload/
+          cd build/ios/ipa
+          zip -r clinicash-unsigned.ipa Payload
 
     artifacts:
       - build/ios/ipa/*.ipa
