@@ -1,8 +1,4 @@
-import 'dart:io';
-
-import 'package:excel/excel.dart' as excel;
 import 'package:flutter/material.dart';
-import 'package:path_provider/path_provider.dart';
 import 'package:table_calendar/table_calendar.dart';
 
 import 'add_treatment_screen.dart';
@@ -261,55 +257,6 @@ class _HistoryScreenState extends State<HistoryScreen> {
     await _loadHistory();
   }
 
-  Future<void> _exportCurrentFilterToXlsx() async {
-    if (_recordsForFilter.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('No hay registros para exportar.')),
-      );
-      return;
-    }
-
-    final workbook = excel.Excel.createExcel();
-    final sheet = workbook['Historial'];
-    sheet.appendRow([
-      excel.TextCellValue('Fecha'),
-      excel.TextCellValue('Hora'),
-      excel.TextCellValue('Paciente'),
-      excel.TextCellValue('Tratamiento'),
-      excel.TextCellValue('Doctor'),
-      excel.TextCellValue('Precio (€)'),
-    ]);
-
-    for (final row in _recordsForFilter) {
-      final createdAt = DateTime.fromMillisecondsSinceEpoch(row['created_at'] as int);
-      final time =
-          '${createdAt.hour.toString().padLeft(2, '0')}:${createdAt.minute.toString().padLeft(2, '0')}';
-      final price = (row['precio_final'] as num).toDouble();
-      sheet.appendRow([
-        excel.TextCellValue(row['fecha'] as String),
-        excel.TextCellValue(time),
-        excel.TextCellValue(row['paciente'] as String),
-        excel.TextCellValue(row['tratamiento'] as String),
-        excel.TextCellValue(row['odontologo'] as String),
-        excel.DoubleCellValue(price),
-      ]);
-    }
-
-    final bytes = workbook.encode();
-    if (bytes == null) return;
-
-    final dir = await getApplicationDocumentsDirectory();
-    final fileName =
-        'historial_${DateTime.now().millisecondsSinceEpoch}.xlsx';
-    final file = File('${dir.path}/$fileName');
-    await file.writeAsBytes(bytes, flush: true);
-
-    if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text('Exportado: ${file.path}')),
-    );
-  }
-
   @override
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
@@ -322,13 +269,6 @@ class _HistoryScreenState extends State<HistoryScreen> {
     return Scaffold(
       appBar: AppBar(
         title: Text('Historial · $doctorName'),
-        actions: [
-          IconButton(
-            onPressed: _exportCurrentFilterToXlsx,
-            icon: const Icon(Icons.download),
-            tooltip: 'Exportar a Excel (.xlsx)',
-          ),
-        ],
       ),
       body: _isLoading
           ? const Center(child: CircularProgressIndicator())

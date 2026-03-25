@@ -1,7 +1,14 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
+import 'package:path_provider/path_provider.dart';
+import 'package:pdf/widgets.dart' as pw;
+import 'package:printing/printing.dart';
+import 'package:share_plus/share_plus.dart';
 
 import 'currency_utils.dart';
 import 'database_helper.dart';
+import 'doctor_session.dart';
 import 'treatment_visuals.dart';
 
 class SettingsScreen extends StatefulWidget {
@@ -20,6 +27,11 @@ class _SettingsScreenState extends State<SettingsScreen> {
   final DatabaseHelper _db = DatabaseHelper();
   final TextEditingController _treatmentFilterController =
       TextEditingController();
+
+  DateTimeRange _exportRange = DateTimeRange(
+    start: DateTime.now().subtract(const Duration(days: 6)),
+    end: DateTime.now(),
+  );
 
   bool _isLoading = true;
   String? _loadError;
@@ -312,6 +324,146 @@ class _SettingsScreenState extends State<SettingsScreen> {
     await _loadData();
   }
 
+  String _formatDate(DateTime date) {
+    final day = date.day.toString().padLeft(2, '0');
+    final month = date.month.toString().padLeft(2, '0');
+    final year = date.year;
+    return '$day/$month/$year';
+  }
+
+  Future<void> _pickExportRange() async {
+    final picked = await showDateRangePicker(
+      context: context,
+      firstDate: DateTime(2020),
+      lastDate: DateTime(2100),
+      initialDateRange: _exportRange,
+      helpText: 'Selecciona rango para PDF',
+    );
+
+    if (picked == null) return;
+    setState(() {
+      _exportRange = DateTimeRange(start: picked.start, end: picked.end);
+    });
+  }
+
+  Future<void> _exportHistoryPdfByRange() async {
+    final doctorId = DoctorSession.selectedDoctorId;
+    final doctorName = DoctorSession.selectedDoctorName ?? 'Sin doctor';
+
+    if (doctorId == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Selecciona un doctor antes de exportar.')),
+      );
+      return;
+    }
+
+    final records = await _db.getRecordsByDoctorBetweenDates(
+      doctorId,
+      _exportRange.start,
+      _exportRange.end,
+    );
+
+    if (records.isEmpty) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('No hay registros en ese rango.')),
+      );
+      return;
+    }
+
+    final total = records.fold<double>(
+      0,
+      (sum, item) => sum + (item['precio_final'] as num).toDouble(),
+    );
+
+    final baseFont = await PdfGoogleFonts.notoSansRegular();
+    final boldFont = await PdfGoogleFonts.notoSansBold();
+
+    final doc = pw.Document();
+    final rows = records.map((row) {
+      final price = (row['precio_final'] as num).toDouble();
+      return [
+        row['fecha'] as String,
+        row['paciente'] as String,
+        row['tratamiento'] as String,
+        formatEuro(price),
+      ];
+    }).toList();
+
+    doc.addPage(
+      pw.MultiPage(
+        theme: pw.ThemeData.withFont(base: baseFont, bold: boldFont),
+        build: (_) => [
+          pw.Text(
+            'Clinicash · Exportación PDF',
+            style: pw.TextStyle(fontSize: 16, fontWeight: pw.FontWeight.bold),
+          ),
+          pw.SizedBox(height: 6),
+          pw.Text('Doctor: $doctorName'),
+          pw.Text(
+            'Rango: ${_formatDate(_exportRange.start)} - ${_formatDate(_exportRange.end)}',
+          ),
+          pw.SizedBox(height: 10),
+          pw.TableHelper.fromTextArray(
+            headers: const ['Fecha', 'Paciente', 'Tratamiento', 'Precio (€)'],
+            data: rows,
+            headerStyle: pw.TextStyle(fontWeight: pw.FontWeight.bold),
+            cellStyle: const pw.TextStyle(fontSize: 10),
+            cellAlignments: {
+              0: pw.Alignment.centerLeft,
+              1: pw.Alignment.centerLeft,
+              2: pw.Alignment.centerLeft,
+              3: pw.Alignment.centerRight,
+            },
+          ),
+          pw.SizedBox(height: 12),
+          pw.Align(
+            alignment: pw.Alignment.centerRight,
+            child: pw.Text(
+              'Total rango: ${formatEuro(total)}',
+              style: pw.TextStyle(fontSize: 12, fontWeight: pw.FontWeight.bold),
+            ),
+          ),
+        ],
+      ),
+    );
+
+    final dir = await getApplicationDocumentsDirectory();
+    final fileName =
+        'historial_${_db.dateKey(_exportRange.start)}_${_db.dateKey(_exportRange.end)}.pdf';
+    final file = File('${dir.path}/$fileName');
+    await file.writeAsBytes(await doc.save(), flush: true);
+
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text('PDF exportado: ${file.path}'),
+        action: SnackBarAction(
+          label: 'Compartir',
+          onPressed: () {
+            _sharePdf(file, doctorName);
+          },
+        ),
+      ),
+    );
+  }
+
+  Future<void> _sharePdf(File file, String doctorName) async {
+    try {
+      await Share.shareXFiles(
+        [XFile(file.path)],
+        text:
+            'Clinicash · Historial de $doctorName (${_formatDate(_exportRange.start)} - ${_formatDate(_exportRange.end)})',
+        subject: 'Historial Clinicash en PDF',
+      );
+    } catch (_) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('No se pudo abrir la opción de compartir.')),
+      );
+    }
+  }
+
   // Confirmación y eliminación de tratamiento.
   Future<void> _deleteTreatment(int id) async {
     final confirmed = await showDialog<bool>(
@@ -587,9 +739,38 @@ class _SettingsScreenState extends State<SettingsScreen> {
               child: Icon(Icons.history, color: cs.onPrimaryContainer),
             ),
             title: const Text('Abrir historial completo'),
-            subtitle: const Text('Filtros por día/mes/rango, edición y exportación.'),
+            subtitle: const Text('Filtros por día/mes/rango y edición de registros.'),
             trailing: const Icon(Icons.chevron_right),
             onTap: () => Navigator.pushNamed(context, '/history'),
+          ),
+        ),
+        const SizedBox(height: 10),
+        Card(
+          child: ListTile(
+            leading: CircleAvatar(
+              backgroundColor: cs.secondaryContainer,
+              child: Icon(Icons.picture_as_pdf, color: cs.onSecondaryContainer),
+            ),
+            title: const Text('Exportar historial en PDF'),
+            subtitle: Text(
+              'Rango: ${_formatDate(_exportRange.start)} - ${_formatDate(_exportRange.end)}',
+            ),
+            trailing: Wrap(
+              spacing: 6,
+              children: [
+                IconButton(
+                  tooltip: 'Elegir rango',
+                  onPressed: _pickExportRange,
+                  icon: const Icon(Icons.date_range),
+                ),
+                IconButton(
+                  tooltip: 'Exportar PDF',
+                  onPressed: _exportHistoryPdfByRange,
+                  icon: const Icon(Icons.download),
+                ),
+              ],
+            ),
+            onTap: _exportHistoryPdfByRange,
           ),
         ),
       ],
